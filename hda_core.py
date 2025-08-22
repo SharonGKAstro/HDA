@@ -305,11 +305,11 @@ def generate_details(data: BirthDataModel):
     birthTime, timeOffset = processBirthTime(data.birthTime)
 
     # Geolocate place of birth
-    # gmaps = googlemaps.Client(key=maps_key)
-    # geocode_result = gmaps.geocode(data.birthPlace)
-    # location = (geocode_result[0]["geometry"]["location"]["lat"],
-    #             geocode_result[0]["geometry"]["location"]["lng"])
-    location = (30.5254, -97.666)
+    gmaps = googlemaps.Client(key=maps_key)
+    geocode_result = gmaps.geocode(data.birthPlace)
+    location = (geocode_result[0]["geometry"]["location"]["lat"],
+                geocode_result[0]["geometry"]["location"]["lng"])
+    # location = (30.5254, -97.666)  # Dummy location for testing
     
     # Get human design info
     hd_info = get_hd(data.birthDate, birthTime, timeOffset)
