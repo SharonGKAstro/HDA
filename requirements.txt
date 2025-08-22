@@ -1,4 +1,6 @@
 fastapi
 uvicorn
-flatlib
+flatlib>=0.2.3
 googlemaps
+pyswisseph
+numpy

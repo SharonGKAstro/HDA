@@ -10,40 +10,11 @@ from August 2025.
 import sys
 import itertools
 
-import swisseph as swe 
-import pandas as pd
+import swisseph as swe
 import numpy as np
-from datetime import timedelta
-from dateutil.relativedelta import relativedelta
-from datetime import datetime
-from pytz import timezone
-from multiprocessing import Pool
-from tqdm.contrib.concurrent import process_map
-from tqdm import tqdm
 
 from human_design import hd_constants
 
-def get_utc_offset_from_tz(timestamp,zone):
-    """
-    Get utc offset from given time zone. 
-    DST (daylightsavingtime) is respectet (data from pytz lib)
-    Parameters
-    ----------
-    timestamp : tuple
-        The date and time. Must be in the format
-        Year, Month, Day, Hour, Minute, Second.
-    zone : str
-        The time zone. E.g. "Europe/Berlin", "US/Eastern"
-
-    Returns
-    -------
-        hours : float
-        The offset hours (decimal hours e.g. 0.75 for 45 min).
-    """
-    country = timezone(zone)
-    tz_offset = country.localize(datetime(*timestamp)).utcoffset().total_seconds()
-    hours = tz_offset/3600
-    return hours
 
 class hd_features:
     ''' 
@@ -184,10 +155,6 @@ class hd_features:
                 
             angle = (long + offset) % 360 #angles max 360°
             angle_percentage = angle/360
-            if planet == "North_Node":
-                print("North Node angles")
-                print(angle)
-                print(angle_percentage)
             
             #convert angle to gate,line,color,tone,base
             gate = self.IGING_CIRCLE_LIST[int(angle_percentage*64)] 
@@ -402,7 +369,6 @@ def get_typ(active_channels_dict,active_chakras):
                          | is_connected(active_channels_dict,"TT","SN","HT")
                         )
     # Throat is connected with Sacral centre? (indirect)
-    print(active_channels_dict)
     TT_SL_isconnected = (is_connected(active_channels_dict,"TT","GC","SL")
                          | is_connected(active_channels_dict, "TT", "SL"))
     # Throat connected with energy centres (SP,SL,HT,RT)?
@@ -524,7 +490,7 @@ def get_channels_and_active_chakras(date_to_gate_dict,meaning=False):
         active_channels_dict["meaning"] = [full_meaning_dict[tuple(channel)] 
                                            for channel in channels] 
 
-    return active_channels_dict,set(active_chakras)
+    return active_channels_dict, set(active_chakras)
 
 def get_split(active_channels_dict,active_chakras):
     """
@@ -722,8 +688,8 @@ def calc_single_hd_features(timestamp,report=False,channel_meaning=False,day_cha
                 print("active chakras: {}".format(active_chakras))
                 print("split: {}".format(split))
                 print("variables: {}".format(variables))
-                print(pd.DataFrame(date_to_gate_dict))
-                print(pd.DataFrame(active_channels_dict))
+                print(date_to_gate_dict)
+                print(active_channels_dict)
          
     if day_chart_only==False:
         return  (typ,                   # 0
@@ -763,325 +729,3 @@ def unpack_single_features(single_result):
     
     return return_dict
 
-def get_timestamp_list(start_date,end_date,percentage,time_unit,intervall): 
-    ''' 
-    make list of timestamps (format: year,month,day,hour,minute) 
-        in given time range (start->end)
-        seconds, and tz_offset will be automatic zero
-    Args:
-        start_date(tuple): (year,month,day,hour,minute,second,timezone_offset)
-        end_date(tuple): (year,month,day,hour,minute,second,timezone_offset)
-        percentage(float): how much % of list is processed (e.g. for trial runs)
-        time_unit (str): = years,months,days,hours,minutes can be used
-        intervall (int) = stepwith, count every X unit(years,months,days,hours,minutes are supported)
-    Return: 
-        list of tuple: format: year,month,day,hour,minute,second,tz_offset
-    
-    Examples : get_timestamp_list((2000,12,31,23,57),(2000,12,31,23,59),1,"minutes",1)
-               -> [(2000,12,31,23,59,0,0),(2000,12,31,23,58,0,0)]           
-    Note: 
-       Precision for hd_calculations
-           every gate changes in 5.71 days, 136.97 hours, 8218.12 minutes
-           every line changes in 0.95 days, 22.83 hours, 1369.69 minutes
-           every color changes in 0.16 days, 3.80 hours, 228.28 minutes
-           every tone changes in 0.03 days, 0.63 hours, 38.05 minutes
-           every base changes in 0.01 days, 0.13 hours, 7.61 minutes
-    '''
-    start_date = datetime(*start_date)
-    end_date = datetime(*end_date)
-
-    if  time_unit =="years":
-        unit=60*60*24*365.2425
-    elif time_unit =="months":
-        unit=60*60*24*365.25/12
-    if time_unit =="days":
-        unit=60*60*24 
-    elif time_unit =="hours":
-        unit=60*60 
-    elif time_unit =="minutes":
-        unit=60
-        
-    time_diff_range = int((end_date-start_date).total_seconds()/(unit)) 
-    timestamp_list = []
-    for idx,i in enumerate(range(int(time_diff_range*percentage/intervall))):
-        #relativdelta native supports year,month
-        if (time_unit == "years") | (time_unit == "months"):
-            new_date = end_date-i*relativedelta(**{time_unit: intervall})
-        #timedelta is faster
-        else:
-            new_date = end_date-i*timedelta(**{"seconds": unit*intervall})
-            
-        timestamp = new_date.year,new_date.month,new_date.day,new_date.hour,new_date.minute,0,0
-        timestamp_list.append(timestamp)
-
-    #sanity check, if date range or intervall makes sense    
-    if not len(timestamp_list):
-        raise ValueError('check startdate < enddate & (enddate-intervall) >= startdate')  
-    return timestamp_list
-    
-def calc_mult_hd_features(start_date,end_date,percentage,time_unit,intervall,num_cpu):
-    """
-    calculate multiple hd_features from given timerange
-    Args:
-        start_date(tuple): year,month,day,hour,minute,second,tz_offset
-        end_date(tuple): year,month,day,hour,minute,second,tz_offset (end>start)
-        percentage(float): percentage of given time range
-        unit(str): years,months,days,hours,minutes
-        intervall(int): stepwith, every X unit
-        num_cpu(int): for multiprocessing
-    Return: 
-        result(list): hd_features(typ,auth,inc,profile,gate_dict,chakra,channel)
-        timestamp_list(list): list of datetime timestamps
-    """
-    p = Pool(num_cpu)
-    timestamp_list=get_timestamp_list(start_date,end_date,percentage,time_unit,intervall) #line change every 22 hour
-    result = process_map(calc_single_hd_features,timestamp_list,chunksize=num_cpu)
-    p.close()
-    p.join()
-    
-    return result,timestamp_list
-
-def unpack_mult_features(result,full=True):
-    '''
-    convert nested lists into dict
-    if full: date_to_gate list is also extracted to new dict 
-    Args:
-        result(list): result from multi timestamp calculation (nested lists)
-    Return:
-        return_dict(dict): keys: "typ","auth","inc_cross","profile"
-                                 "split,"date_to_gate_dict","active_chakra"
-                                 "active_channel"
-    '''
-    return_dict = {}
-    # unpacking multiple calculation values
-    return_dict["typ_list"] = [result[i][0] for i in range (len(result))]
-    return_dict["auth_list"] = [result[i][1] for i in range (len(result))]
-    return_dict["inc_cross_list"] = [result[i][2] for i in range (len(result))]
-    return_dict["inc_cross_typ_list"] = [result[i][3] for i in range (len(result))]
-    return_dict["profile_list"] = [result[i][4] for i in range (len(result))]
-    return_dict["split_list"] = [result[i][5] for i in range (len(result))]
-    return_dict["date_to_gate_dict"] = [result[i][6] for i in range (len(result))]
-    return_dict["active_chakra_list"] = [result[i][7] for i in range (len(result))]
-    return_dict["active_channel_list"] = [result[i][8] for i in range (len(result))]
-    
-    if full:
-        #extract date_to_gate_dict lists value keys'lon', 'gate', 'line', 'color', 'tone', 'base'
-        return_dict["gate_list"] = [return_dict["date_to_gate_dict"][i]["gate"] 
-                                    for i in range(len(return_dict["date_to_gate_dict"]))]
-        return_dict["line_list"] = [return_dict["date_to_gate_dict"][i]["line"] 
-                                    for i in range(len(return_dict["date_to_gate_dict"]))]
-        return_dict["lon_list"] = line_list = [return_dict["date_to_gate_dict"][i]["lon"] 
-                                    for i in range (len(return_dict["date_to_gate_dict"]))]
-        return_dict["color_list"] = [return_dict["date_to_gate_dict"][i]["color"] 
-                                    for i in range (len(return_dict["date_to_gate_dict"]))]
-        return_dict["tone_list"] = [return_dict["date_to_gate_dict"][i]["tone"] 
-                                    for i in range (len(return_dict["date_to_gate_dict"]))]
-        return_dict["base_list"] = [return_dict["date_to_gate_dict"][i]["base"] 
-                                    for i in range (len(return_dict["date_to_gate_dict"]))]
-      
-    return return_dict
-    
-def get_single_hd_features(persons_dict,key,feature):
-    """
-    get hd features of specified person and unpack values for composite charts proc.
-    Args: 
-        person dict(dict): eg {"person1":(2022,2,2,2,22,0,2),"person2":(1922,2,2,2,22,0,2)}
-        key (str): e.g. "person1"
-        feature(str): "date_to_gate_dict"
-    Return
-        feature_values(dict) of person
-    """
-    single_result = calc_single_hd_features(persons_dict[key],report=False)
-    
-    return unpack_single_features(single_result)[feature]
-
-def composite_chakras_channels(persons_dict,identity,other_person):
-    """
-    get composite chakras and channels of two identities
-    uses pd.DataFrames format, therefore might be slower
-    Args:
-        person dict(dict): eg {"person1":(2022,2,2,2,22,0,2),"person2":(1922,2,2,2,22,0,2)}
-        identity: person1 (in person dict)
-        other person: person2 (in person dict)
-    Return
-        new_channels(pd.DFrame): new channel of composite chart
-        duplicated_channels(od.DataFrame):channels that are present oin both persons
-        new_chakras(set): new chakras that are activated by connecting gates of both persons
-        composite_chakras(set): all chakras in new composite chart
-    """
-    #get hd_features of given persons
-    other_gate_dict = get_single_hd_features(persons_dict,other_person,'date_to_gate_dict')
-    identity_gate_dict = get_single_hd_features(persons_dict,identity,'date_to_gate_dict')
-    #concat composite dict to new one
-    for person in [identity,other_person]:
-        composite_dict = {key:other_gate_dict[key] + identity_gate_dict[key] 
-                          for key in other_gate_dict.keys()}    
-    #get channels and chakra of identity, other and composite chart
-    composite_channels_dict,composite_chakras = get_channels_and_active_chakras(composite_dict,meaning=True)
-    id_channels_dict,id_chakras = get_channels_and_active_chakras(identity_gate_dict,meaning=True)
-    other_channels_dict,other_chakras = get_channels_and_active_chakras(other_gate_dict,meaning=True)
-    #convert to pd.dataframe
-    composite_channels = pd.DataFrame(composite_channels_dict)
-    id_channels = pd.DataFrame(id_channels_dict)
-    other_channels = pd.DataFrame(other_channels_dict)
-    #get new channels,chakras
-    mask_new = composite_channels["meaning"].isin(
-        pd.concat([id_channels["meaning"],other_channels["meaning"]]))
-    mask_duplicated=id_channels["meaning"].isin(
-        other_channels["meaning"])
-    new_channels = composite_channels[~mask_new]
-    duplicated_channels = id_channels[mask_duplicated]
-    new_chakras = composite_chakras-id_chakras
-    
-    return new_channels,duplicated_channels,new_chakras,composite_chakras
-
-def get_composite_combinations(persons_dict):
-    ''' 
-    get composite features of two persones in pd.dataframe format
-    If more than two persons in dict, every combination is calculated
-    Args:
-        person dict(dict): eg {"person1":(2022,2,2,2,22,0,2),"person2":(1922,2,2,2,22,0,2)}
-    Return:
-        pd.Dataframe of composite features of every pair combination in persons dict
-    '''
-    result_dict = {"id":[],"other_person":[],"new_chakra":[],"chakra_count":[],"new_channels":[],"new_ch_meaning":[]}
-    
-    for idx,combination in enumerate(list(itertools.combinations(persons_dict.keys(),2))):
-
-        identity = combination[0]
-        other_person = combination[1]
-        new_channels,dupl_channels,new_chakras,comp_chakras = composite_chakras_channels(
-            persons_dict,identity,other_person)
-
-        result_dict["id"] = result_dict["id"] + [identity]
-        result_dict["other_person"] = result_dict["other_person"] + [other_person]
-        result_dict["new_chakra"] = result_dict["new_chakra"] + [list(new_chakras)]
-        result_dict["chakra_count"] = result_dict["chakra_count"] + [int(len(comp_chakras))]
-        result_dict["new_channels"] = result_dict["new_channels"] + [list(zip(new_channels["gate"],new_channels["ch_gate"]))]
-        result_dict["new_ch_meaning"] = result_dict["new_ch_meaning"] + [list(new_channels["meaning"])]
-
-    result_df = pd.DataFrame(dict([(k,pd.Series(v)) for k,v in result_dict.items()]))
-    
-    return result_df
-
-def get_penta(persons_dict,report=False):
-    """
-    take gates of given identity combination (concat) and look if it matches to "penta" gates
-    Args:
-         person dict(dict): eg {"person1":(2022,2,2,2,22,0,2),"person2":(1922,2,2,2,22,0,2)}
-         report(bool): print full report (dataframe, with every gate matched)
-    Return:
-        df(pd.Dataframe): penta gates as cols
-                          if identity combination has penta gate:x, else:0 
-        persentage(float): how much percent of penta is matched
-    """
-    penta_dict = hd_constants.penta_dict
-    
-    for person in persons_dict.keys():
-        identity_dict = get_single_hd_features(persons_dict,person,'date_to_gate_dict')
-        person_gate_list=np.array(identity_dict["gate"])
-        person_penta_gates = np.intersect1d(person_gate_list,np.array(list(penta_dict.keys())))
-
-        for key in penta_dict.keys():
-            if key in person_penta_gates:
-                penta_dict[key]=[person] + penta_dict[key]
-
-    result_dict = {elem:pd.Series(persons_dict.keys()).isin(penta_dict[elem]) 
-                   for elem in penta_dict.keys()}
-    penta_gates_bool = [(any(result_dict[key])) for key in result_dict.keys()]
-    sum_penta_gates = sum(penta_gates_bool)
-    if report:
-        df = pd.DataFrame(result_dict) 
-        df.loc[df.shape[0]+1,:] = [any(df[col]) for col in df.columns]
-        df = df.replace({False:"o",True:"x"})
-        df["index"] = list(persons_dict.keys())+["all"]
-        df = df.set_index("index",drop=True)
-        df.style
-    return round(sum_penta_gates/12*100,2)
-
-
-
-class hd_composite:
-
-    def __init__(self,birth_timestamp,start_date,end_date,percentage,time_unit,intervall,num_cpu):
-    
-        '''
-        Initialization of timestamp attributes for basic calculation 
-        hd_constants.py 
-        '''
-        self.birth_timestamp = birth_timestamp
-        self.start_date = start_date
-        self.end_date = end_date
-        self.percentage = percentage
-        self.time_unit = time_unit
-        self.intervall = intervall
-        self.num_cpu = num_cpu
-    
-    def date_to_gate_hd_chart(self):
-        hd_chart_birth = calc_single_hd_features(self.birth_timestamp,
-                                                report=False,channel_meaning=True,day_chart_only=False)
-        date_to_gate_birth = hd_chart_birth[6] # only date_to_gate_dict
-        del date_to_gate_birth["ch_gate"] #for concat both dicts
-
-        self.date_to_gate_birth = date_to_gate_birth
-
-        return date_to_gate_birth
-
-    def get_composite_hd_day_chart(self,day_date):
-        date_to_gate_day = calc_single_hd_features(
-                                day_date,
-                                day_chart_only=True)
-
-        #concat day chart and birth chart to new identity
-        date_to_gate_dict = {
-                    key: self.date_to_gate_birth [key] + date_to_gate_day[key] 
-                    for key in self.date_to_gate_birth.keys()
-                                    }
-
-        #get channels and chakras
-        active_channels_dict,active_chakras = (get_channels_and_active_chakras(
-                                                    date_to_gate_dict))
-        typ = get_typ(active_channels_dict,active_chakras)
-        auth = get_auth(active_chakras,active_channels_dict)
-        split = get_split(active_channels_dict,active_chakras)
-        planets = date_to_gate_dict
-        return active_channels_dict,active_chakras,typ,auth,split,planets
-
-    def calc_multi_comp_charts(self):
-    
-        timestamp_list=get_timestamp_list(
-                                self.start_date,
-                                self.end_date,
-                                self.percentage,
-                                self.time_unit,
-                                self.intervall) #line change every 22 hour
-        p = Pool(self.num_cpu)
-        result = process_map(self.get_composite_hd_day_chart,timestamp_list,chunksize=self.num_cpu)
-        p.close()
-        p.join()
-
-        self.result = result
-        self.timestamp_list = timestamp_list
-
-    def unpack_mult_features(self):
-        '''
-        convert nested lists into dict
-        if full: date_to_gate list is also extracted to new dict 
-        Args:
-            result(list): result from multi timestamp calculation (nested lists)
-        Return:
-            return_dict(dict): keys: "typ","auth","inc_cross","profile"
-                                    "split,"date_to_gate_dict","active_chakra"
-                                    "active_channel"
-        '''
-        return_dict = {}
-        # unpacking multiple calculation values
-
-        return_dict["active_channel_list"] = [self.result[i][0] for i in range (len(self.result))]
-        return_dict["active_chakra_list"] = [self.result[i][1] for i in range (len(self.result))]
-        return_dict["typ_list"] = [self.result[i][2] for i in range (len(self.result))]
-        return_dict["auth_list"] = [self.result[i][3] for i in range (len(self.result))]
-        return_dict["split_list"] = [self.result[i][4] for i in range (len(self.result))]
-        return_dict["planet_dict_list"] = [self.result[i][5] for i in range (len(self.result))]
-
-        return return_dict

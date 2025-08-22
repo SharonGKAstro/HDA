@@ -246,7 +246,6 @@ def get_astro(birthDate, birthTime, timeOffset, location):
                    "latspeed": sweph[4]}
     _signInfo(lilith_dict)  # Adds the sign and sign longitude
     lilith_obj = Object.fromDict(lilith_dict)
-    print(lilith_obj.signlon)
     line = {"sign": lilith_obj.sign,
             "house": chart.houses.getObjectHouse(lilith_obj).id}
     info[lilith_obj.id] = line

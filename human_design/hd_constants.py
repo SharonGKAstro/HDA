@@ -1,15 +1,22 @@
 """
-synchronize IGING and zodiac circle ->58°
-    Human design systems start at gate 41, Aries, (source :Ra Uru BlackBook)
+hd_constants.py
+
+Constants for human design features.
+
+Modified from original by MicFell at https://github.com/MicFell/human_design_engine/
+from August 2025.
 """
+
+# synchronize IGING and zodiac circle ->58°
+# Human design systems start at gate 41, Aries, (source :Ra Uru BlackBook)
 IGING_offset = 58  
 
 # codes from swe-> dict([[i,swe.get_planet_name(i)] for i in range(0,23)])
 SWE_PLANET_DICT = {"Sun":0,
                     "Earth":0, # Sun position -180 longitude
                     "Moon":1,
-                    "North_Node":11, # Disussion wheater mean or True node?! here North Node -> true Node
-                    "South_Node":11, # North_Node position -180 longitude
+                    "North_Node":11, # Disussion whether mean or True node?! here North Node -> true Node
+                    "South_Node":11, # North_Node position - 180 longitude
                     "Mercury":2,
                     "Venus":3,
                     "Mars":4,
