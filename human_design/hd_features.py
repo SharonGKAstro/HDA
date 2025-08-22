@@ -9,6 +9,7 @@ from August 2025.
 
 import sys
 import itertools
+import queue
 
 import swisseph as swe
 import numpy as np
@@ -513,12 +514,46 @@ def get_split(active_channels_dict,active_chakras):
     sorted_chakras = [sorted((gate_chakra[i],ch_gate_chakra[i])) 
                       for i in range(len(active_channels_dict["gate_chakra"]))]
     unique_mask = np.unique(sorted_chakras,axis=0,return_index=True)[1]
-    dupl_mask = np.zeros(len(sorted_chakras),dtype=bool)
-    dupl_mask[unique_mask]=True
-    len_no_dupl_channel = sum(dupl_mask)
-    split = len(active_chakras) - len_no_dupl_channel
+    edges = [sorted_chakras[i] for i in unique_mask]
+    explored = []
+    queued = []
+    num_subgraphs = 0
+    for chakra in active_chakras:
+        # Skip if chakra is already explored
+        if chakra in explored:
+            continue
+
+        # Explore from this chakra
+        q = queue.SimpleQueue()
+        q.put(chakra)
+        while not q.empty():
+            # Pop next node from queue
+            node = q.get()
+
+            # Mark node as explored
+            explored.append(node)
+
+            # Add node's neighbors to the queue
+            for edge in edges:
+                start, end = edge
+                # Check if this node is the start node
+                if node == start:
+                    # Add neighbor to queue if unexplored
+                    if not end in explored and not end in queued:
+                        q.put(end)
+                        queued.append(end)
+                elif node == end:  # Check if this node is the end node
+                    # Add neighbor to queue if unexplored
+                    if not start in explored and not start in queued:
+                        q.put(start)
+                        queued.append(start)
+                # Else edge is not for this node
+
+        # Count subgraph
+        num_subgraphs += 1
     
-    return hd_constants.DEFINITION_NAMES[split]
+    
+    return hd_constants.DEFINITION_NAMES[num_subgraphs]
     
 def calc_full_gates_chakra_dict(gates_chakra_dict):
     ''' 
