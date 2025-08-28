@@ -22,6 +22,7 @@ import googlemaps
 
 import human_design.hd_features as hdf
 import human_design.hd_constants as hdconst
+from gene_keys import GENE_KEYS, GK_LINES
 
 
 class BirthDataModel(BaseModel):
@@ -105,17 +106,15 @@ def processPlanets(planet_dict):
     offset = len(planet_dict["planets"]) // 2
 
     # Create personality planet list
-    personality = []
+    personality = {}
     for plan, gate, line in zip(planets[:offset], gates[:offset], lines[:offset]):
-        personality.append({"name": plan,
-                            "gate": gate,
-                            "line": line})
+        personality[plan] = {"gate": gate,
+                             "line": line}
     
-    design = []
+    design = {}
     for plan, gate, line in zip(planets[offset:], gates[offset:], lines[offset:]):
-        design.append({"name": plan,
-                       "gate": gate,
-                       "line": line})
+        design[plan] = {"gate": gate,
+                        "line": line}
         
     return {"personality": personality,
             "design": design}
@@ -156,12 +155,15 @@ def getChannels(channel_dict):
     chg = channel_dict["ch_gate"]
     channels = []
     for start, end in zip(g, chg):
-        channels.append(str(start) + str(end))
+        channels.append("{0:{fill}{width}}{1:{fill}{width}}".format(start,
+                                                                    end,
+                                                                    fill=0,
+                                                                    width=2))
 
     return channels
 
 
-def get_hd(birthDate: str, birthTime, timeOffset):
+def get_hd(birthDate: str, birthTime, timeOffset, location):
     """
     Create Human Design information.
     
@@ -184,7 +186,7 @@ def get_hd(birthDate: str, birthTime, timeOffset):
     bt = tuple(date + time + [offset])
 
     # Calculate Human Design information
-    design = hdf.calc_single_hd_features(bt)
+    design = hdf.calc_single_hd_features(bt, location)
     gate_dict = design[7]
 
     # Repackage basic information from design
@@ -203,8 +205,7 @@ def get_hd(birthDate: str, birthTime, timeOffset):
             "active chakras": design[8],
             "planets": processPlanets(gate_dict)}  # Get planets and their gates and lines
 
-    return info
-    
+    return info 
 
 
 def get_astro(birthDate, birthTime, timeOffset, location):
@@ -274,6 +275,77 @@ def get_astro(birthDate, birthTime, timeOffset, location):
     return info
 
 
+def get_gk(planet_gates):
+    """
+    Create gene keys from Human Design.
+
+    Parameters
+    ----------
+    planet_gates: dict
+        The planets with their associated gates and lines.
+    """
+    prs = planet_gates["personality"]
+    dsn = planet_gates["design"]
+
+    # Life's Work - Personality Sun
+    lifework = {**GENE_KEYS[prs["Sun"]["gate"]],
+                "line": GK_LINES["lifework"][prs["Sun"]["line"]]}
+    # Evolution - Personality Earth
+    evolution = {**GENE_KEYS[prs["Earth"]["gate"]],
+                 "line": GK_LINES["evolution"][prs["Earth"]["line"]]}
+    # Pearl - Personality Jupiter
+    pearl = {**GENE_KEYS[prs["Jupiter"]["gate"]],
+             "line": GK_LINES["pearl"][prs["Jupiter"]["line"]]}
+    # Culture - Design Jupiter
+    culture = {**GENE_KEYS[dsn["Jupiter"]["gate"]],
+               "line": GK_LINES["culture"][dsn["Jupiter"]["line"]]}
+    # Vocation - Design Mars
+    vocation = {**GENE_KEYS[dsn["Mars"]["gate"]],
+                "line": GK_LINES["vocation"][dsn["Mars"]["line"]]}
+    # SQ - Design Venus
+    sq = {**GENE_KEYS[dsn["Venus"]["gate"]],
+          "line": GK_LINES["sq"][dsn["Venus"]["line"]]}
+    # Radiance - Design Sun
+    radiance = {**GENE_KEYS[dsn["Sun"]["gate"]],
+                "line": GK_LINES["radiance"][dsn["Sun"]["line"]]}
+    # Purpose - Design Earth
+    purpose = {**GENE_KEYS[dsn["Earth"]["gate"]],
+               "line": GK_LINES["purpose"][dsn["Earth"]["line"]]}
+    # Attraction - Design Moon
+    attraction = {**GENE_KEYS[dsn["Moon"]["gate"]],
+                  "line": GK_LINES["attraction"][dsn["Moon"]["line"]]}
+    # IQ - Personality Venus
+    iq = {**GENE_KEYS[prs["Venus"]["gate"]],
+          "line": GK_LINES["iq"][prs["Venus"]["line"]]}
+    # EQ - Personality Mars
+    eq = {**GENE_KEYS[prs["Mars"]["gate"]],
+          "line": GK_LINES["eq"][prs["Mars"]["line"]]}
+    # Relating - Personality Mercury
+    relating = GENE_KEYS[prs["Mercury"]["gate"]]
+    #relating["line"] = GK_LINES[prs["Sun"]["line"]]
+    # Stability - Personality Saturn
+    stability = GENE_KEYS[prs["Saturn"]["gate"]]
+    #stability["line"] = GK_LINES[prs["Sun"]["line"]]
+    # Creativity - Design Uranus
+    creativity = GENE_KEYS[dsn["Uranus"]["gate"]]
+    #creativity["line"] = GK_LINES[prs["Sun"]["line"]]
+
+    return {"Life's Work": lifework,
+            "Evolution": evolution,
+            "Pearl": pearl,
+            "Culture": culture,
+            "Vocation": vocation,
+            "SQ": sq,
+            "Radiance": radiance,
+            "Purpose": purpose,
+            "Attraction": attraction,
+            "IQ": iq,
+            "EQ": eq,
+            "Relating": relating,
+            "Stability": stability,
+            "Creativity": creativity}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -312,7 +384,7 @@ def generate_details(data: BirthDataModel):
     # location = (30.5254, -97.666)  # Dummy location for testing
     
     # Get human design info
-    hd_info = get_hd(data.birthDate, birthTime, timeOffset)
+    hd_info = get_hd(data.birthDate, birthTime, timeOffset, location)
     
     # Get astrology info
     a_info = get_astro(data.birthDate,
@@ -321,8 +393,7 @@ def generate_details(data: BirthDataModel):
                        location)
     
     # Get gene key info
-    gk_info = {"life_work": "<Life work here>",
-               "evolution": "<Evolution here>"}
+    gk_info = get_gk(hd_info["planets"])
     
     return {"message": msg,
             "human_design": hd_info,

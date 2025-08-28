@@ -41,17 +41,25 @@ class hd_features:
         Anja Chakra = AA
         Throat Chakra = TT
         G-Centre = GC
-        Hearth Chakra = HT
+        Heart Chakra = HT
         Spleen Chakra = SN
         Solar Plexus Chakra = SP
         Sakral Chakra = SL
         Root Chakra = RT     
     '''    
-    def __init__(self,year,month,day,hour,minute,second,tz_offset):
-    
+    def __init__(self,
+                 year,
+                 month,
+                 day,
+                 hour,
+                 minute,
+                 second,
+                 tz_offset,
+                 latitude,
+                 longitude):
         '''
         Initialization of timestamp attributes for basic calculation 
-        hd_constants.py 
+        hd_constants.py
         '''
         self.year = year
         self.month = month
@@ -61,6 +69,8 @@ class hd_features:
         self.second = second
         self.tz_offset = tz_offset
         self.time_stamp = year,month,day,hour,minute,second,tz_offset
+        self.lat = latitude
+        self.lon = longitude
         
         '''
         Constant values are stored in hd_constants.py
@@ -172,6 +182,39 @@ class hd_features:
             result_dict["color"].append(color)
             result_dict["tone"].append(tone)
             result_dict["base"].append(base)
+
+        # Get angles
+        _, ascmc = swe.houses(jdut, self.lat, self.lon, hsys=b"A")
+        for hang, hang_code in hd_constants.SWE_ANGLE_DICT.items():
+            # Longitude for angle
+            long = ascmc[hang_code]
+
+            # Descendant is the opposite of ascendant
+            if hang == "DSC":
+                long = (long+180) % 360  # Max angle is 360
+            
+            # IC is opposite of MC
+            if hang == "IC":
+                long = (long+180) % 360  # Max angle is 360
+
+            angle = (long + offset) % 360 #angles max 360°
+            angle_percentage = angle/360
+            
+            #convert angle to gate,line,color,tone,base
+            gate = self.IGING_CIRCLE_LIST[int(angle_percentage*64)] 
+            line = int((angle_percentage*64*6)%6+1)
+            color =int((angle_percentage*64*6*6)%6+1)
+            tone =int((angle_percentage*64*6*6*6)%6+1)
+            base =int((angle_percentage*64*6*6*6*5)%5+1)
+
+            result_dict["label"].append(label)
+            result_dict["planets"].append(hang)
+            result_dict["lon"].append(long)
+            result_dict["gate"].append(gate)
+            result_dict["line"].append(line)
+            result_dict["color"].append(color)
+            result_dict["tone"].append(tone)
+            result_dict["base"].append(base)
             
         return result_dict
 
@@ -216,10 +259,16 @@ class hd_features:
 def get_inc_cross(date_to_gate_dict):
     ''' 
     get incarnation cross from open gates 
-        Args:
-            date_to_gate_dict(dict):output of hd_feature class 
-                                    keys->[planets,label,longitude,gate,line,color,tone,base]
-        Return:
+    Parameters
+    ----------
+    date_to_gate_dict : dict keys->[planets,label,longitude,gate,line,color,tone,base]
+        output of hd_feature class
+    profile : str
+        The profile of the person. Of the form "(X, X) - AAA / AAA" where X is a number
+        and AAA is the name of a profile role.
+
+    Returns
+    -------
             incarnation cross(tuple): gates of sun and earth from birth and create date 
                                       format e.g. ((1,2),(3,4))
     '''
@@ -231,7 +280,8 @@ def get_inc_cross(date_to_gate_dict):
                 )          
     profile = df["line"][0],df["line"][idx]
     cr_typ = hd_constants.IC_CROSS_TYP[profile]
-    inc_cross = cr_typ + " - " + str(inc_cross)
+    name = hd_constants.IC_JUX_NAMES[inc_cross] if cr_typ=="JXP" else hd_constants.IC_NAMES[inc_cross]
+    inc_cross = cr_typ + " - " + str(inc_cross) + " " + name
     return inc_cross
 
 def get_profile(date_to_gate_dict):
@@ -241,7 +291,7 @@ def get_profile(date_to_gate_dict):
         date_to_gate_dict(dict):output of hd_feature class 
                                     keys->[planets,label,longitude,gate,line,color,tone,base]
     Return:
-        profile(tuple): format e.g. (1,4)
+        profile(str): format e.g. "(1, 4) - Investigator / "
     '''
     df = date_to_gate_dict
     idx = int(len(df["line"])/2) #start idx of design values
@@ -274,7 +324,7 @@ def get_variables(date_to_gate_dict):
     keys = ["right_up","right_down","left_up","left_down"] #arrows,variables
     variables = {keys[idx]:"left" if tone<=3 else "right" for idx,tone in enumerate(tones)}
 
-    return variables 
+    return variables
 
 def is_connected(active_channels_dict,*args):
     ''' 
@@ -337,7 +387,7 @@ def get_auth(active_chakras,active_channels_dict):
     elif "SN" in active_chakras:
         auth = "Splenic"
     elif (is_connected(active_channels_dict,"HT","TT")): #("HT" in active_chakras) &
-        auth= "Ego Manifested"
+        auth= "Ego Manifested - Heart"
     elif (is_connected(active_channels_dict,"GC","TT")): #("GC" in active_chakras) &
         auth = "G Center"
     elif ("GC" in active_chakras) & ("HT" in active_chakras):
@@ -437,7 +487,7 @@ def get_channels_and_active_chakras(date_to_gate_dict,meaning=False):
                 full_dict["full_chakra_2_list"]
                 [full_dict["full_gate_2_list"].index(gate)]
             ) 
-    df["ch_gate"]=ch_gate_list
+    df["ch_gate"] = ch_gate_list
 
     #filter dict for active channels (ch_gate is not 0)
     mask=np.array(df["ch_gate"])!=0
@@ -654,8 +704,30 @@ def get_full_chakra_connect_dict():
         chakra_connect_dict.update({combination:connect_channels})
                
     return chakra_connect_dict
+
+
+def remove_extras(original_dict):
+    """
+    Removes Chiron, Lilith, and the angles (AC, MC, DC, IC) from the dict.
+    """
+    reduced_dict = {
+        "label": original_dict["label"][:13] + original_dict["label"][19:32],
+        "planets": original_dict["planets"][:13] + original_dict["planets"][19:32],
+        "lon": original_dict["lon"][:13] + original_dict["lon"][19:32],
+        "gate": original_dict["gate"][:13] + original_dict["gate"][19:32],
+        "line": original_dict["line"][:13] + original_dict["line"][19:32],
+        "color": original_dict["color"][:13] + original_dict["color"][19:32],
+        "tone": original_dict["tone"][:13] + original_dict["tone"][19:32],
+        "base": original_dict["base"][:13] + original_dict["base"][19:32]
+    }
+
+    return reduced_dict
         
-def calc_single_hd_features(timestamp,report=False,channel_meaning=False,day_chart_only=False):
+def calc_single_hd_features(timestamp,
+                            location,
+                            report=False,
+                            channel_meaning=False,
+                            day_chart_only=False):
     '''
     from given timestamp calc basic additional hd_features
     print report if requested
@@ -665,6 +737,10 @@ def calc_single_hd_features(timestamp,report=False,channel_meaning=False,day_cha
     timestamp : tuple
         The time of birth. Must be in the format
         (year,month,day,hour,minute,second,tz_offset).
+    location : tuple[float, float]
+        The location of birth. Must be in the format (latitude, longitude).
+        Negative values of latitude are south. Negative values of longitude
+        are west.
     report : bool
         Prints text report of key features.
     channel_meaning : bool
@@ -695,14 +771,15 @@ def calc_single_hd_features(timestamp,report=False,channel_meaning=False,day_cha
         Year,Month,day,hour,min,sec,timezone_offset,\nIs date correct?")
         raise ValueError('check timestamp Format') 
     else:
-        instance = hd_features(*timestamp) #create instance of hd_features class
+        instance = hd_features(*timestamp, *location) #create instance of hd_features class
 
         if day_chart_only:
             date_to_gate_dict = instance.day_chart(instance.time_stamp)
         else:
-            date_to_gate_dict = instance.birth_creat_date_to_gate() 
+            date_to_gate_dict = instance.birth_creat_date_to_gate()
             active_channels_dict,active_chakras = get_channels_and_active_chakras(
-                date_to_gate_dict,meaning=channel_meaning)
+                remove_extras(date_to_gate_dict),
+                meaning=channel_meaning)
             typ = get_typ(active_channels_dict,active_chakras)
             auth = get_auth(active_chakras,active_channels_dict)
             inc_cross = get_inc_cross(date_to_gate_dict)
