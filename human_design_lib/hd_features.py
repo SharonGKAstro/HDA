@@ -14,7 +14,7 @@ import queue
 import swisseph as swe
 import numpy as np
 
-from human_design import hd_constants
+from human_design_lib import hd_constants
 
 
 class hd_features:

@@ -139,3 +139,74 @@ GK_LINES = {
            5: "Mentoring",
            6: "Patience"},
 }
+
+
+def get_gk(planet_gates):
+    """
+    Create gene keys from Human Design planets with their gates and lines.
+
+    Parameters
+    ----------
+    planet_gates: dict
+        The planets with their associated gates and lines.
+    """
+    prs = planet_gates["personality"]
+    dsn = planet_gates["design"]
+
+    # Life's Work - Personality Sun
+    lifework = {**GENE_KEYS[prs["Sun"]["gate"]],
+                "line": GK_LINES["lifework"][prs["Sun"]["line"]]}
+    # Evolution - Personality Earth
+    evolution = {**GENE_KEYS[prs["Earth"]["gate"]],
+                 "line": GK_LINES["evolution"][prs["Earth"]["line"]]}
+    # Pearl - Personality Jupiter
+    pearl = {**GENE_KEYS[prs["Jupiter"]["gate"]],
+             "line": GK_LINES["pearl"][prs["Jupiter"]["line"]]}
+    # Culture - Design Jupiter
+    culture = {**GENE_KEYS[dsn["Jupiter"]["gate"]],
+               "line": GK_LINES["culture"][dsn["Jupiter"]["line"]]}
+    # Vocation - Design Mars
+    vocation = {**GENE_KEYS[dsn["Mars"]["gate"]],
+                "line": GK_LINES["vocation"][dsn["Mars"]["line"]]}
+    # SQ - Design Venus
+    sq = {**GENE_KEYS[dsn["Venus"]["gate"]],
+          "line": GK_LINES["sq"][dsn["Venus"]["line"]]}
+    # Radiance - Design Sun
+    radiance = {**GENE_KEYS[dsn["Sun"]["gate"]],
+                "line": GK_LINES["radiance"][dsn["Sun"]["line"]]}
+    # Purpose - Design Earth
+    purpose = {**GENE_KEYS[dsn["Earth"]["gate"]],
+               "line": GK_LINES["purpose"][dsn["Earth"]["line"]]}
+    # Attraction - Design Moon
+    attraction = {**GENE_KEYS[dsn["Moon"]["gate"]],
+                  "line": GK_LINES["attraction"][dsn["Moon"]["line"]]}
+    # IQ - Personality Venus
+    iq = {**GENE_KEYS[prs["Venus"]["gate"]],
+          "line": GK_LINES["iq"][prs["Venus"]["line"]]}
+    # EQ - Personality Mars
+    eq = {**GENE_KEYS[prs["Mars"]["gate"]],
+          "line": GK_LINES["eq"][prs["Mars"]["line"]]}
+    # Relating - Personality Mercury
+    relating = GENE_KEYS[prs["Mercury"]["gate"]]
+    #relating["line"] = GK_LINES[prs["Sun"]["line"]]
+    # Stability - Personality Saturn
+    stability = GENE_KEYS[prs["Saturn"]["gate"]]
+    #stability["line"] = GK_LINES[prs["Sun"]["line"]]
+    # Creativity - Design Uranus
+    creativity = GENE_KEYS[dsn["Uranus"]["gate"]]
+    #creativity["line"] = GK_LINES[prs["Sun"]["line"]]
+
+    return {"Life's Work": lifework,
+            "Evolution": evolution,
+            "Pearl": pearl,
+            "Culture": culture,
+            "Vocation": vocation,
+            "SQ": sq,
+            "Radiance": radiance,
+            "Purpose": purpose,
+            "Attraction": attraction,
+            "IQ": iq,
+            "EQ": eq,
+            "Relating": relating,
+            "Stability": stability,
+            "Creativity": creativity}
