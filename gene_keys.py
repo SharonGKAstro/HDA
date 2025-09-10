@@ -141,6 +141,24 @@ GK_LINES = {
 }
 
 
+def gateline(planet):
+    """
+    Create the string <gate>.<line> from the planet data.
+    
+    Parameters
+    ----------
+    planet: dict
+        The planet's dictionary. Needs to have the 'gate' and 'line' keys.
+        
+    Returns
+    -------
+    A string of the form <gate>.<line> from the planet's data.
+    """
+    gate = planet["gate"]
+    line = planet["line"]
+    return f"{gate}.{line}"
+
+
 def get_gk(planet_gates):
     """
     Create gene keys from Human Design planets with their gates and lines.
@@ -154,46 +172,60 @@ def get_gk(planet_gates):
     dsn = planet_gates["design"]
 
     # Life's Work - Personality Sun
-    lifework = {**GENE_KEYS[prs["Sun"]["gate"]],
+    lifework = {"number": gateline(prs["Sun"]),
+                **GENE_KEYS[prs["Sun"]["gate"]],
                 "line": GK_LINES["lifework"][prs["Sun"]["line"]]}
     # Evolution - Personality Earth
-    evolution = {**GENE_KEYS[prs["Earth"]["gate"]],
+    evolution = {"number": gateline(prs["Earth"]),
+                 **GENE_KEYS[prs["Earth"]["gate"]],
                  "line": GK_LINES["evolution"][prs["Earth"]["line"]]}
     # Pearl - Personality Jupiter
-    pearl = {**GENE_KEYS[prs["Jupiter"]["gate"]],
+    pearl = {"number": gateline(prs["Jupiter"]),
+             **GENE_KEYS[prs["Jupiter"]["gate"]],
              "line": GK_LINES["pearl"][prs["Jupiter"]["line"]]}
     # Culture - Design Jupiter
-    culture = {**GENE_KEYS[dsn["Jupiter"]["gate"]],
+    culture = {"number": gateline(dsn["Jupiter"]),
+               **GENE_KEYS[dsn["Jupiter"]["gate"]],
                "line": GK_LINES["culture"][dsn["Jupiter"]["line"]]}
     # Vocation - Design Mars
-    vocation = {**GENE_KEYS[dsn["Mars"]["gate"]],
+    vocation = {"number": gateline(dsn["Mars"]),
+                **GENE_KEYS[dsn["Mars"]["gate"]],
                 "line": GK_LINES["vocation"][dsn["Mars"]["line"]]}
     # SQ - Design Venus
-    sq = {**GENE_KEYS[dsn["Venus"]["gate"]],
+    sq = {"number": gateline(dsn["Venus"]),
+          **GENE_KEYS[dsn["Venus"]["gate"]],
           "line": GK_LINES["sq"][dsn["Venus"]["line"]]}
     # Radiance - Design Sun
-    radiance = {**GENE_KEYS[dsn["Sun"]["gate"]],
+    radiance = {"number": gateline(dsn["Sun"]),
+                **GENE_KEYS[dsn["Sun"]["gate"]],
                 "line": GK_LINES["radiance"][dsn["Sun"]["line"]]}
     # Purpose - Design Earth
-    purpose = {**GENE_KEYS[dsn["Earth"]["gate"]],
+    purpose = {"number": gateline(dsn["Earth"]),
+               **GENE_KEYS[dsn["Earth"]["gate"]],
                "line": GK_LINES["purpose"][dsn["Earth"]["line"]]}
     # Attraction - Design Moon
-    attraction = {**GENE_KEYS[dsn["Moon"]["gate"]],
+    attraction = {"number": gateline(dsn["Moon"]),
+                  **GENE_KEYS[dsn["Moon"]["gate"]],
                   "line": GK_LINES["attraction"][dsn["Moon"]["line"]]}
     # IQ - Personality Venus
-    iq = {**GENE_KEYS[prs["Venus"]["gate"]],
+    iq = {"number": gateline(prs["Venus"]),
+          **GENE_KEYS[prs["Venus"]["gate"]],
           "line": GK_LINES["iq"][prs["Venus"]["line"]]}
     # EQ - Personality Mars
-    eq = {**GENE_KEYS[prs["Mars"]["gate"]],
+    eq = {"number": gateline(prs["Mars"]),
+          **GENE_KEYS[prs["Mars"]["gate"]],
           "line": GK_LINES["eq"][prs["Mars"]["line"]]}
     # Relating - Personality Mercury
-    relating = GENE_KEYS[prs["Mercury"]["gate"]]
+    relating = {"number": gateline(prs["Mercury"]),
+                **GENE_KEYS[prs["Mercury"]["gate"]]}
     #relating["line"] = GK_LINES[prs["Sun"]["line"]]
     # Stability - Personality Saturn
-    stability = GENE_KEYS[prs["Saturn"]["gate"]]
+    stability = {"number": gateline(prs["Saturn"]),
+                 **GENE_KEYS[prs["Saturn"]["gate"]]}
     #stability["line"] = GK_LINES[prs["Sun"]["line"]]
     # Creativity - Design Uranus
-    creativity = GENE_KEYS[dsn["Uranus"]["gate"]]
+    creativity = {"number": gateline(dsn["Uranus"]),
+                  **GENE_KEYS[dsn["Uranus"]["gate"]]}
     #creativity["line"] = GK_LINES[prs["Sun"]["line"]]
 
     return {"Life's Work": lifework,
